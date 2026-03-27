@@ -25,7 +25,7 @@ function gui_app()
     app.destCall = 'CQ';
     
     % Create UI components
-    createUIComponents(app);
+    app = createUIComponents(app);
     
     % Store app data
     fig.UserData = app;
@@ -34,7 +34,7 @@ function gui_app()
     detectRadios(fig);
 end
 
-function createUIComponents(app)
+function app = createUIComponents(app)
     fig = app.fig;
     
     % Title
@@ -127,6 +127,8 @@ function createUIComponents(app)
                               'ButtonPushedFcn', @(btn,event) sendMessage(fig), ...
                               'Enable', 'off', ...
                               'BackgroundColor', [0.3 0.75 0.3]);
+    
+    % Return updated app structure
 end
 
 function detectRadios(fig)

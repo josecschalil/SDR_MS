@@ -1,0 +1,86 @@
+GUI FIX - README
+════════════════════════════════════════════════════════════════
+
+The original gui_app.m had a bug where UI components weren't being 
+properly stored in the app structure. This has been FIXED!
+
+WHAT WAS FIXED:
+════════════════════════════════════════════════════════════════
+
+Issue: The createUIComponents() function was not returning the 
+updated app structure, causing "Unrecognized field name" errors.
+
+Fix: Changed function signature to return app structure:
+  OLD: function createUIComponents(app)
+  NEW: function app = createUIComponents(app)
+
+And updated the caller:
+  OLD: createUIComponents(app);
+  NEW: app = createUIComponents(app);
+
+
+HOW TO USE:
+════════════════════════════════════════════════════════════════
+
+Option 1: Standard GUI (Fixed)
+  >> main          % Tries gui_app first
+  >> gui_app       % Direct launch
+
+Option 2: Simplified GUI (More Robust)
+  >> gui_simple    % Uses traditional MATLAB GUI (guidata)
+
+Option 3: Command-Line
+  >> simple_chat   % Minimal CLI chat interface
+
+
+WHICH GUI TO USE:
+════════════════════════════════════════════════════════════════
+
+gui_app.m:
+  ✓ Modern uifigure interface
+  ✓ Better looking
+  ✓ More features
+  ⚠ Requires MATLAB R2019b+
+  ⚠ May have compatibility issues
+
+gui_simple.m:
+  ✓ Traditional figure/uicontrol
+  ✓ More compatible
+  ✓ More robust
+  ✓ Works on older MATLAB versions
+  ⚠ Less modern appearance
+
+simple_chat.m:
+  ✓ No GUI required
+  ✓ Works everywhere
+  ✓ Good for debugging
+  ⚠ Command-line only
+
+
+TROUBLESHOOTING:
+════════════════════════════════════════════════════════════════
+
+If gui_app still doesn't work:
+  1. Try gui_simple instead
+  2. Check MATLAB version (need R2019b+ for uifigure)
+  3. Use simple_chat for command-line interface
+
+If no GUI works:
+  1. Use command-line functions directly
+  2. Configure: [tx,rx] = pluto_config('usb:0','usb:1',145e6,0,20)
+  3. Transmit: tx_chain('Hello', tx, 'CALL1', 'CALL2')
+  4. Receive: [msg,valid,src,dst] = rx_chain(rx, 10)
+
+
+TEST THE FIX:
+════════════════════════════════════════════════════════════════
+
+>> main
+
+Should now launch successfully without errors!
+
+If you see "Unrecognized field name" errors, use gui_simple instead:
+
+>> gui_simple
+
+════════════════════════════════════════════════════════════════

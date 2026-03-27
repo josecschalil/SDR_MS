@@ -33,10 +33,17 @@ function main()
         gui_app;
     catch ME
         fprintf('Error launching GUI: %s\n', ME.message);
-        fprintf('\nYou can still use the command-line interface:\n');
-        fprintf('  - Use tx_chain() to transmit\n');
-        fprintf('  - Use rx_chain() to receive\n');
-        fprintf('  - Use pluto_config() to configure SDR\n\n');
+        fprintf('\nTrying simplified GUI...\n');
+        try
+            gui_simple;
+        catch ME2
+            fprintf('Error launching simplified GUI: %s\n', ME2.message);
+            fprintf('\nYou can still use the command-line interface:\n');
+            fprintf('  - Use tx_chain() to transmit\n');
+            fprintf('  - Use rx_chain() to receive\n');
+            fprintf('  - Use pluto_config() to configure SDR\n');
+            fprintf('  - Run simple_chat for CLI chat\n\n');
+        end
     end
 end
 
