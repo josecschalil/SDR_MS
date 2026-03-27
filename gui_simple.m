@@ -16,6 +16,10 @@ function gui_simple()
     data.txSDR = [];
     data.rxSDR = [];
     data.radios = [];
+    data.rxTimer = [];
+    data.pingPending = false;
+    data.pingId = 0;
+    data.pingStart = 0;
     data.sm = half_duplex_sm();
     
     % Create UI elements
@@ -100,19 +104,25 @@ function gui_simple()
               'HorizontalAlignment', 'left', ...
               'BackgroundColor', [0.94 0.94 0.94]);
     data.msgEdit = uicontrol('Style', 'edit', ...
-                             'Position', [10, 40, 550, 25], ...
+                             'Position', [10, 40, 420, 25], ...
                              'String', '', ...
                              'HorizontalAlignment', 'left');
     
     % Send buttons
     data.requestBtn = uicontrol('Style', 'pushbutton', ...
-                                'Position', [570, 40, 120, 25], ...
+                                'Position', [440, 40, 80, 25], ...
                                 'String', 'Request TX', ...
                                 'Enable', 'off', ...
                                 'Callback', {@requestTXCallback, fig});
     
+    data.pingBtn = uicontrol('Style', 'pushbutton', ...
+                             'Position', [530, 40, 80, 25], ...
+                             'String', 'Ping', ...
+                             'Enable', 'off', ...
+                             'Callback', {@pingCallback, fig});
+    
     data.sendBtn = uicontrol('Style', 'pushbutton', ...
-                             'Position', [570, 10, 120, 25], ...
+                             'Position', [620, 10, 70, 25], ...
                              'String', 'Send', ...
                              'Enable', 'off', ...
                              'BackgroundColor', [0.3 0.75 0.3], ...
@@ -176,8 +186,10 @@ function connectCallback(~, ~, fig)
         if ~isempty(data.txSDR) && ~isempty(data.rxSDR)
             addChat(fig, 'System: Connected!');
             set(data.requestBtn, 'Enable', 'on');
+            set(data.pingBtn, 'Enable', 'on');
             data.sm.enterReceiveMode();
             updateStatus(fig);
+            startRXTimer(fig);
         else
             addChat(fig, 'System: Connection failed');
         end
@@ -234,6 +246,44 @@ function sendCallback(~, ~, fig)
     guidata(fig, data);
 end
 
+function pingCallback(~, ~, fig)
+    data = guidata(fig);
+    
+    if isempty(data.txSDR) || isempty(data.rxSDR)
+        addChat(fig, 'System: Connect radios before pinging');
+        return;
+    end
+    
+    if ~data.sm.requestTransmit()
+        addChat(fig, 'System: TX busy, try again');
+        return;
+    end
+    
+    data.pingId = randi([0, 1e6]);
+    data.pingStart = tic;
+    data.pingPending = true;
+    guidata(fig, data);
+    updateStatus(fig);
+    
+    src = get(data.sourceEdit, 'String');
+    dst = get(data.destEdit, 'String');
+    
+    addChat(fig, sprintf('System: PING → %s', dst));
+    success = tx_chain(sprintf('PING:%d', data.pingId), data.txSDR, src, dst);
+    
+    data = guidata(fig);
+    if success
+        addChat(fig, 'System: Ping sent, waiting for reply...');
+    else
+        addChat(fig, 'System: Ping transmit failed');
+        data.pingPending = false;
+    end
+    
+    data.sm.finishTransmit();
+    guidata(fig, data);
+    updateStatus(fig);
+end
+
 function addChat(fig, msg)
     data = guidata(fig);
     timestamp = datestr(now, 'HH:MM:SS');
@@ -248,4 +298,116 @@ function updateStatus(fig)
     data = guidata(fig);
     set(data.statusText, 'String', sprintf('Status: %s', data.sm.state));
     guidata(fig, data);
+end
+
+function startRXTimer(fig)
+    data = guidata(fig);
+    
+    if ~isempty(data.rxTimer)
+        stop(data.rxTimer);
+        delete(data.rxTimer);
+    end
+    
+    data.rxTimer = timer('ExecutionMode', 'fixedRate', ...
+                         'Period', 2, ...
+                         'TimerFcn', @(~,~) checkForMessages(fig));
+    start(data.rxTimer);
+    
+    guidata(fig, data);
+end
+
+function checkForMessages(fig)
+    if ~ishandle(fig)
+        return;
+    end
+    
+    data = guidata(fig);
+    
+    if isempty(data.rxSDR) || ~data.sm.canReceive()
+        return;
+    end
+    
+    try
+        [message, valid, sourceCall, ~] = rx_chain(data.rxSDR, 1);
+        
+        if valid && ~isempty(message)
+            msgTrim = strtrim(message);
+            
+            if handlePingReply(fig, msgTrim, sourceCall)
+                return;
+            end
+            
+            if handlePingRequest(fig, msgTrim, sourceCall)
+                return;
+            end
+            
+            addChat(fig, sprintf('%s: %s', sourceCall, msgTrim));
+        end
+    catch
+        % ignore RX errors
+    end
+end
+
+function handled = handlePingReply(fig, msgTrim, sourceCall)
+    handled = false;
+    data = guidata(fig);
+    
+    if startsWith(msgTrim, 'PONG:')
+        parts = split(msgTrim, ':');
+        pongId = NaN;
+        if numel(parts) >= 2
+            pongId = str2double(parts{2});
+        end
+        
+        if data.pingPending && ~isnan(pongId) && pongId == data.pingId
+            rtt = round(toc(data.pingStart) * 1000);
+            addChat(fig, sprintf('System: Pong from %s in %d ms', sourceCall, rtt));
+            data.pingPending = false;
+            guidata(fig, data);
+            handled = true;
+        end
+    end
+end
+
+function handled = handlePingRequest(fig, msgTrim, sourceCall)
+    handled = false;
+    
+    if startsWith(msgTrim, 'PING:')
+        parts = split(msgTrim, ':');
+        pingId = '';
+        if numel(parts) >= 2
+            pingId = strtrim(parts{2});
+        end
+        
+        addChat(fig, sprintf('System: Ping request from %s (id %s)', sourceCall, pingId));
+        sendPong(fig, sourceCall, pingId);
+        handled = true;
+    end
+end
+
+function sendPong(fig, destCall, pingId)
+    data = guidata(fig);
+    
+    if isempty(data.txSDR)
+        return;
+    end
+    
+    if ~data.sm.requestTransmit()
+        addChat(fig, 'System: Busy, unable to answer ping now');
+        return;
+    end
+    
+    src = get(data.sourceEdit, 'String');
+    ackMsg = sprintf('PONG:%s', pingId);
+    success = tx_chain(ackMsg, data.txSDR, src, destCall);
+    
+    if success
+        addChat(fig, sprintf('System: Pong → %s', destCall));
+    else
+        addChat(fig, sprintf('System: Failed to respond to ping from %s', destCall));
+    end
+    
+    data.sm.finishTransmit();
+    guidata(fig, data);
+    updateStatus(fig);
 end

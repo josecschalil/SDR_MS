@@ -23,6 +23,9 @@ function gui_app()
     app.rxTimer = [];
     app.sourceCall = 'N0CALL';
     app.destCall = 'CQ';
+    app.pingPending = false;
+    app.pingId = 0;
+    app.pingStart = 0;
     
     % Create UI components
     app = createUIComponents(app);
@@ -112,17 +115,23 @@ function app = createUIComponents(app)
                          'Title', 'Send Message', 'FontWeight', 'bold');
     
     app.messageEdit = uitextarea(inputPanel, ...
-                                 'Position', [10, 10, 630, 50], ...
+                                 'Position', [10, 10, 520, 50], ...
                                  'Value', {'Type your message here...'});
     
     app.requestTXButton = uibutton(inputPanel, 'push', ...
-                                   'Position', [650, 35, 100, 30], ...
+                                   'Position', [540, 35, 100, 30], ...
                                    'Text', '📢 Request TX', ...
                                    'ButtonPushedFcn', @(btn,event) requestTX(fig), ...
                                    'Enable', 'off');
     
+    app.pingButton = uibutton(inputPanel, 'push', ...
+                              'Position', [650, 35, 100, 30], ...
+                              'Text', '🔔 Ping Peer', ...
+                              'ButtonPushedFcn', @(btn,event) pingPeer(fig), ...
+                              'Enable', 'off');
+    
     app.sendButton = uibutton(inputPanel, 'push', ...
-                              'Position', [650, 5, 100, 25], ...
+                              'Position', [540, 5, 210, 25], ...
                               'Text', '📤 Send', ...
                               'ButtonPushedFcn', @(btn,event) sendMessage(fig), ...
                               'Enable', 'off', ...
@@ -188,6 +197,7 @@ function connectRadios(fig)
         if ~isempty(app.txSDR) && ~isempty(app.rxSDR)
             addChatMessage(fig, 'System: ✓ Connected successfully!');
             app.requestTXButton.Enable = 'on';
+            app.pingButton.Enable = 'on';
             app.stateMachine.enterReceiveMode();
             updateStatus(fig);
             
@@ -288,7 +298,18 @@ function checkForMessages(fig)
         [message, valid, sourceCall, ~] = rx_chain(app.rxSDR, 1);
         
         if valid && ~isempty(message)
-            addChatMessage(fig, sprintf('%s: %s', sourceCall, strtrim(message)));
+            msgTrim = strtrim(message);
+            
+            % Handle ping replies/requests
+            if handlePingReply(fig, msgTrim, sourceCall)
+                return;
+            end
+            
+            if handlePingRequest(fig, msgTrim, sourceCall)
+                return;
+            end
+            
+            addChatMessage(fig, sprintf('%s: %s', sourceCall, msgTrim));
         end
     catch
         % Ignore RX errors
@@ -310,5 +331,108 @@ end
 function updateStatus(fig)
     app = fig.UserData;
     app.statusLabel.Text = app.stateMachine.getStateString();
+    fig.UserData = app;
+end
+
+function pingPeer(fig)
+    app = fig.UserData;
+    
+    if isempty(app.txSDR) || isempty(app.rxSDR)
+        addChatMessage(fig, 'System: Connect radios before pinging');
+        return;
+    end
+    
+    if ~app.stateMachine.requestTransmit()
+        addChatMessage(fig, 'System: TX busy. Try again.');
+        return;
+    end
+    
+    app.pingId = randi([0, 1e6]);
+    app.pingStart = tic;
+    app.pingPending = true;
+    updateStatus(fig);
+    fig.UserData = app;
+    
+    src = app.sourceCallEdit.Value;
+    dst = app.destCallEdit.Value;
+    
+    addChatMessage(fig, sprintf('System: PING → %s', dst));
+    success = tx_chain(sprintf('PING:%d', app.pingId), app.txSDR, src, dst);
+    
+    app = fig.UserData;
+    
+    if success
+        addChatMessage(fig, 'System: Ping sent. Waiting for reply...');
+    else
+        addChatMessage(fig, 'System: Ping transmit failed');
+        app.pingPending = false;
+    end
+    
+    app.stateMachine.finishTransmit();
+    updateStatus(fig);
+    fig.UserData = app;
+end
+
+function handled = handlePingReply(fig, msgTrim, sourceCall)
+    handled = false;
+    app = fig.UserData;
+    
+    if startsWith(msgTrim, 'PONG:')
+        parts = split(msgTrim, ':');
+        pongId = NaN;
+        if numel(parts) >= 2
+            pongId = str2double(parts{2});
+        end
+        
+        if app.pingPending && ~isnan(pongId) && pongId == app.pingId
+            rttMs = round(toc(app.pingStart) * 1000);
+            addChatMessage(fig, sprintf('System: Pong from %s in %d ms', sourceCall, rttMs));
+            app.pingPending = false;
+            fig.UserData = app;
+            handled = true;
+        end
+    end
+end
+
+function handled = handlePingRequest(fig, msgTrim, sourceCall)
+    handled = false;
+    
+    if startsWith(msgTrim, 'PING:')
+        parts = split(msgTrim, ':');
+        pingId = '';
+        if numel(parts) >= 2
+            pingId = strtrim(parts{2});
+        end
+        
+        addChatMessage(fig, sprintf('System: Ping request from %s (id %s)', sourceCall, pingId));
+        sendPong(fig, sourceCall, pingId);
+        handled = true;
+    end
+end
+
+function sendPong(fig, destCall, pingId)
+    app = fig.UserData;
+    
+    if isempty(app.txSDR)
+        return;
+    end
+    
+    if ~app.stateMachine.requestTransmit()
+        addChatMessage(fig, 'System: Busy, unable to answer ping right now');
+        return;
+    end
+    
+    src = app.sourceCallEdit.Value;
+    ackMsg = sprintf('PONG:%s', pingId);
+    success = tx_chain(ackMsg, app.txSDR, src, destCall);
+    
+    if success
+        addChatMessage(fig, sprintf('System: Pong → %s', destCall));
+    else
+        addChatMessage(fig, sprintf('System: Failed to respond to ping from %s', destCall));
+    end
+    
+    app.stateMachine.finishTransmit();
+    updateStatus(fig);
     fig.UserData = app;
 end
