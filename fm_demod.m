@@ -24,7 +24,7 @@ function audioSignal = fm_demod(fmSignal, fs_rf, fs_audio, freqDev)
     
     % FM demodulation using phase differentiation
     % Extract instantaneous phase
-    phase = unwrap(angle(fmSignal));
+    phase = unwrap(angle(fmSignal(:)));  % Ensure column vector
     
     % Differentiate phase to get frequency
     % f(t) = (1/2π) * dφ/dt
@@ -34,8 +34,8 @@ function audioSignal = fm_demod(fmSignal, fs_rf, fs_audio, freqDev)
     % Normalize by frequency deviation
     audioDemod = freq / freqDev;
     
-    % Pad to match input length
-    audioDemod = [audioDemod, audioDemod(end)];
+    % Pad to match input length (keep as column vector)
+    audioDemod = [audioDemod; audioDemod(end)];
     
     % De-emphasis (inverse of pre-emphasis)
     % Standard 75 μs time constant
