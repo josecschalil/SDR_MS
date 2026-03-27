@@ -144,12 +144,15 @@ function crc_bytes = calculateCRC16(bits)
     % Polynomial: 0x1021
     
     % Convert bits to bytes
-    numBytes = length(bits) / 8;
+    numBytes = floor(length(bits) / 8);
     bytes = zeros(1, numBytes);
     for i = 1:numBytes
         startIdx = (i-1)*8 + 1;
-        byte_bits = bits(startIdx:startIdx+7);
-        bytes(i) = bits2byte(byte_bits);
+        endIdx = startIdx + 7;
+        if endIdx <= length(bits)
+            byte_bits = bits(startIdx:endIdx);
+            bytes(i) = bits2byte(byte_bits);
+        end
     end
     
     % CRC-16-CCITT calculation
