@@ -1,47 +1,21 @@
 ╔═══════════════════════════════════════════════════════════════════╗
-║            FINAL BUG FIX - AX.25 CRC CALCULATION ✅               ║
+║          COMPLETE FIX - ALL INTEGER ISSUES RESOLVED ✅            ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
-ISSUE #4: AX.25 DECODER CRC ERROR
+FINAL BUG: Multiple Integer Division Issues
 ════════════════════════════════════════════════════════════════════
 
-Error Message:
-  "Size inputs must be integers"
-  
-Location:
-  calculateCRC16 (line 148)
-  Called from ax25_decode (line 75)
+Fixed in ax25_decode.m:
+  • Line 86: numInfoBytes = floor(length(infoBits) / 8)
+  • Line 150: numBytes = floor(length(bits) / 8)
 
-Cause:
-  numBytes = length(bits) / 8
-  
-  If bit array length is not exactly divisible by 8 (e.g., 1201 bits),
-  this creates a non-integer value (150.125), which can't be used
-  as an array size.
+Fixed in ax25_encode.m:
+  • Line 102: numBytes = floor(length(bits) / 8)
+
+All division-by-8 operations now use floor() to ensure integer results.
 
 
-THE FIX
-════════════════════════════════════════════════════════════════════
-
-Changed in BOTH ax25_encode.m and ax25_decode.m:
-
-OLD CODE (WRONG):
-  numBytes = length(bits) / 8;
-  bytes = zeros(1, numBytes);  % ERROR if numBytes not integer!
-
-NEW CODE (CORRECT):
-  numBytes = floor(length(bits) / 8);  % Force integer
-  bytes = zeros(1, numBytes);
-  
-Also added bounds checking:
-  endIdx = startIdx + 7;
-  if endIdx <= length(bits)
-      byte_bits = bits(startIdx:endIdx);
-      bytes(i) = bits2byte(byte_bits);
-  end
-
-
-COMPLETE LIST OF FIXES THIS SESSION
+COMPLETE SESSION SUMMARY
 ════════════════════════════════════════════════════════════════════
 
 1. ✅ GUI Detection (gui_app.m line 141)

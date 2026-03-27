@@ -83,12 +83,15 @@ function [message, valid, sourceCall, destCall] = ax25_decode(bits)
     end
     
     % Decode information field to text
-    numInfoBytes = length(infoBits) / 8;
+    numInfoBytes = floor(length(infoBits) / 8);
     message = char(zeros(1, numInfoBytes));
     for i = 1:numInfoBytes
         startIdx = (i-1)*8 + 1;
-        byte_bits = infoBits(startIdx:startIdx+7);
-        message(i) = char(bits2byte(byte_bits));
+        endIdx = startIdx + 7;
+        if endIdx <= length(infoBits)
+            byte_bits = infoBits(startIdx:endIdx);
+            message(i) = char(bits2byte(byte_bits));
+        end
     end
 end
 
