@@ -1,0 +1,10 @@
+=== GUI APP LOG START ===
+time=2026-03-27 13:36:05.547
+instance=pid1916_20260327_133605525_9152
+cwd=C:\Users\josec\Desktop\SDR_MS
+=========================
+[2026-03-27 13:36:05.581] [INFO] [APP_START] [state=IDLE] GUI initialized
+[2026-03-27 13:36:05.581] [INFO] [DETECT_START] [state=IDLE] Detecting Pluto radios
+[2026-03-27 13:36:05.600] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Detecting Pluto radios...
+[2026-03-27 13:36:05.649] [INFO] [DETECT_FOUND] [state=IDLE] Found 2 radio(s): usb:0,usb:1
+[2026-03-27 13:36:05.653] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Found 2 radio(s)

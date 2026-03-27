@@ -202,86 +202,118 @@ end
 
 function requestTXCallback(~, ~, fig)
     data = guidata(fig);
-    
-    if data.sm.requestTransmit()
-        addChat(fig, 'System: TX granted');
-        set(data.sendBtn, 'Enable', 'on');
-        set(data.requestBtn, 'Enable', 'off');
-        updateStatus(fig);
-    else
-        addChat(fig, 'System: TX denied');
+    try
+        if data.sm.canTransmit() && strcmp(get(data.sendBtn, 'Enable'), 'off')
+            % Recover from stale TX mode if a previous callback failed.
+            data.sm.finishTransmit();
+        end
+
+        if strcmp(get(data.requestBtn, 'Enable'), 'off') && ~data.sm.canTransmit()
+            set(data.requestBtn, 'Enable', 'on');
+        end
+
+        addChat(fig, 'System: Requesting TX...');
+        if data.sm.requestTransmit()
+            addChat(fig, 'System: TX granted');
+            set(data.sendBtn, 'Enable', 'on');
+            set(data.requestBtn, 'Enable', 'off');
+            updateStatus(fig);
+        else
+            addChat(fig, 'System: TX denied');
+        end
+    catch ME
+        addChat(fig, sprintf('Request TX error: %s', ME.message));
     end
-    
     guidata(fig, data);
 end
 
 function sendCallback(~, ~, fig)
     data = guidata(fig);
-    
-    msg = get(data.msgEdit, 'String');
-    if isempty(strtrim(msg))
-        addChat(fig, 'System: Please enter a message');
-        return;
+    try
+        msg = get(data.msgEdit, 'String');
+        if isempty(strtrim(msg))
+            addChat(fig, 'System: Please enter a message');
+            return;
+        end
+        
+        src = get(data.sourceEdit, 'String');
+        dst = get(data.destEdit, 'String');
+        
+        addChat(fig, sprintf('You -> %s: %s', dst, msg));
+        
+        success = tx_chain(msg, data.txSDR, src, dst);
+        
+        if success
+            addChat(fig, 'System: Sent!');
+        else
+            addChat(fig, 'System: TX failed');
+        end
+        
+        set(data.msgEdit, 'String', '');
+        data.sm.finishTransmit();
+        set(data.sendBtn, 'Enable', 'off');
+        set(data.requestBtn, 'Enable', 'on');
+        updateStatus(fig);
+    catch ME
+        if data.sm.canTransmit()
+            data.sm.finishTransmit();
+        end
+        set(data.sendBtn, 'Enable', 'off');
+        set(data.requestBtn, 'Enable', 'on');
+        updateStatus(fig);
+        addChat(fig, sprintf('Send error: %s', ME.message));
     end
-    
-    src = get(data.sourceEdit, 'String');
-    dst = get(data.destEdit, 'String');
-    
-    addChat(fig, sprintf('You -> %s: %s', dst, msg));
-    
-    success = tx_chain(msg, data.txSDR, src, dst);
-    
-    if success
-        addChat(fig, 'System: Sent!');
-    else
-        addChat(fig, 'System: TX failed');
-    end
-    
-    set(data.msgEdit, 'String', '');
-    data.sm.finishTransmit();
-    set(data.sendBtn, 'Enable', 'off');
-    set(data.requestBtn, 'Enable', 'on');
-    updateStatus(fig);
-    
     guidata(fig, data);
 end
 
 function pingCallback(~, ~, fig)
     data = guidata(fig);
-    
-    if isempty(data.txSDR) || isempty(data.rxSDR)
-        addChat(fig, 'System: Connect radios before pinging');
-        return;
+    try
+        addChat(fig, 'System: Preparing ping...');
+        
+        if isempty(data.txSDR) || isempty(data.rxSDR)
+            addChat(fig, 'System: Connect radios before pinging');
+            return;
+        end
+        
+        if ~data.sm.requestTransmit()
+            addChat(fig, 'System: TX busy, try again');
+            return;
+        end
+        
+        data.pingId = randi([0, 1e6]);
+        data.pingStart = tic;
+        data.pingPending = true;
+        guidata(fig, data);
+        updateStatus(fig);
+        
+        src = get(data.sourceEdit, 'String');
+        dst = get(data.destEdit, 'String');
+        
+        addChat(fig, sprintf('System: PING → %s', dst));
+        success = tx_chain(sprintf('PING:%d', data.pingId), data.txSDR, src, dst);
+        
+        data = guidata(fig);
+        if success
+            addChat(fig, 'System: Ping sent, waiting for reply...');
+        else
+            addChat(fig, 'System: Ping transmit failed');
+            data.pingPending = false;
+        end
+        
+        data.sm.finishTransmit();
+        guidata(fig, data);
+        updateStatus(fig);
+    catch ME
+        if data.sm.canTransmit()
+            data.sm.finishTransmit();
+        end
+        set(data.sendBtn, 'Enable', 'off');
+        set(data.requestBtn, 'Enable', 'on');
+        guidata(fig, data);
+        updateStatus(fig);
+        addChat(fig, sprintf('Ping error: %s', ME.message));
     end
-    
-    if ~data.sm.requestTransmit()
-        addChat(fig, 'System: TX busy, try again');
-        return;
-    end
-    
-    data.pingId = randi([0, 1e6]);
-    data.pingStart = tic;
-    data.pingPending = true;
-    guidata(fig, data);
-    updateStatus(fig);
-    
-    src = get(data.sourceEdit, 'String');
-    dst = get(data.destEdit, 'String');
-    
-    addChat(fig, sprintf('System: PING → %s', dst));
-    success = tx_chain(sprintf('PING:%d', data.pingId), data.txSDR, src, dst);
-    
-    data = guidata(fig);
-    if success
-        addChat(fig, 'System: Ping sent, waiting for reply...');
-    else
-        addChat(fig, 'System: Ping transmit failed');
-        data.pingPending = false;
-    end
-    
-    data.sm.finishTransmit();
-    guidata(fig, data);
-    updateStatus(fig);
 end
 
 function addChat(fig, msg)

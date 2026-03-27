@@ -26,12 +26,14 @@ function gui_app()
     app.pingPending = false;
     app.pingId = 0;
     app.pingStart = 0;
+    [app.logFile, app.instanceId] = initLogFile();
     
     % Create UI components
     app = createUIComponents(app);
     
     % Store app data
     fig.UserData = app;
+    writeLog(fig, 'INFO', 'APP_START', 'GUI initialized');
     
     % Detect radios on startup
     detectRadios(fig);
@@ -142,6 +144,7 @@ end
 
 function detectRadios(fig)
     app = fig.UserData;
+    writeLog(fig, 'INFO', 'DETECT_START', 'Detecting Pluto radios');
     
     addChatMessage(fig, 'System: Detecting Pluto radios...');
     
@@ -154,6 +157,7 @@ function detectRadios(fig)
             for i = 1:length(app.availableRadios)
                 radioNames{i} = app.availableRadios(i).RadioID;
             end
+            writeLog(fig, 'INFO', 'DETECT_FOUND', sprintf('Found %d radio(s): %s', length(app.availableRadios), strjoin(radioNames, ',')));
             
             app.txRadioDropdown.Items = radioNames;
             app.txRadioDropdown.Value = radioNames{1};
@@ -167,10 +171,12 @@ function detectRadios(fig)
             addChatMessage(fig, sprintf('System: Found %d radio(s)', length(app.availableRadios)));
         else
             addChatMessage(fig, 'System: No Pluto radios detected');
+            writeLog(fig, 'WARN', 'DETECT_NONE', 'No Pluto radios detected');
             app.txRadioDropdown.Items = {'No radios'};
             app.rxRadioDropdown.Items = {'No radios'};
         end
     catch ME
+        writeLog(fig, 'ERROR', 'DETECT_ERROR', ME.message);
         addChatMessage(fig, sprintf('System Error: %s', ME.message));
     end
     
@@ -188,6 +194,7 @@ function connectRadios(fig)
     try
         txID = app.txRadioDropdown.Value;
         rxID = app.rxRadioDropdown.Value;
+        writeLog(fig, 'INFO', 'CONNECT_START', sprintf('TX=%s RX=%s', txID, rxID));
         
         addChatMessage(fig, sprintf('System: Connecting TX: %s, RX: %s...', txID, rxID));
         
@@ -196,6 +203,7 @@ function connectRadios(fig)
         
         if ~isempty(app.txSDR) && ~isempty(app.rxSDR)
             addChatMessage(fig, 'System: ✓ Connected successfully!');
+            writeLog(fig, 'INFO', 'CONNECT_OK', 'Connected successfully');
             app.requestTXButton.Enable = 'on';
             app.pingButton.Enable = 'on';
             app.stateMachine.enterReceiveMode();
@@ -205,8 +213,10 @@ function connectRadios(fig)
             startRXMonitoring(fig);
         else
             addChatMessage(fig, 'System: ✗ Connection failed');
+            writeLog(fig, 'ERROR', 'CONNECT_FAIL', 'Connection returned empty SDR handle(s)');
         end
     catch ME
+        writeLog(fig, 'ERROR', 'CONNECT_ERROR', ME.message);
         addChatMessage(fig, sprintf('System Error: %s', ME.message));
     end
     
@@ -215,53 +225,82 @@ end
 
 function requestTX(fig)
     app = fig.UserData;
-    
-    if app.stateMachine.requestTransmit()
-        addChatMessage(fig, 'System: TX granted');
-        app.sendButton.Enable = 'on';
-        app.requestTXButton.Enable = 'off';
-        updateStatus(fig);
-    else
-        addChatMessage(fig, 'System: TX denied (already transmitting)');
+    try
+        if app.stateMachine.canTransmit() && strcmp(app.sendButton.Enable, 'off')
+            % Recover from a stale TX lock left by a previous error path.
+            app.stateMachine.finishTransmit();
+        end
+
+        if strcmp(app.requestTXButton.Enable, 'off') && ~app.stateMachine.canTransmit()
+            app.requestTXButton.Enable = 'on';
+        end
+
+        addChatMessage(fig, 'System: Requesting TX...');
+        writeLog(fig, 'INFO', 'TX_REQUEST', sprintf('stateBefore=%s', app.stateMachine.state));
+        if app.stateMachine.requestTransmit()
+            addChatMessage(fig, 'System: TX granted');
+            writeLog(fig, 'INFO', 'TX_GRANTED', 'Transmission permission granted');
+            app.sendButton.Enable = 'on';
+            app.requestTXButton.Enable = 'off';
+            updateStatus(fig);
+        else
+            addChatMessage(fig, 'System: TX denied (already transmitting)');
+            writeLog(fig, 'WARN', 'TX_DENIED', sprintf('state=%s', app.stateMachine.state));
+        end
+    catch ME
+        writeLog(fig, 'ERROR', 'TX_REQUEST_ERROR', ME.message);
+        addChatMessage(fig, sprintf('Request TX error: %s', ME.message));
     end
-    
     fig.UserData = app;
 end
 
 function sendMessage(fig)
     app = fig.UserData;
-    
-    message = strjoin(app.messageEdit.Value, ' ');
-    
-    if isempty(strtrim(message)) || strcmp(message, 'Type your message here...')
-        addChatMessage(fig, 'System: Please enter a message');
-        return;
+    try
+        message = strjoin(app.messageEdit.Value, ' ');
+        writeLog(fig, 'INFO', 'SEND_START', sprintf('msgLen=%d', strlength(message)));
+        
+        if isempty(strtrim(message)) || strcmp(message, 'Type your message here...')
+            addChatMessage(fig, 'System: Please enter a message');
+            return;
+        end
+        
+        % Get callsigns
+        sourceCall = app.sourceCallEdit.Value;
+        destCall = app.destCallEdit.Value;
+        
+        addChatMessage(fig, sprintf('You → %s: %s', destCall, message));
+        writeLog(fig, 'INFO', 'SEND_TX_CHAIN', sprintf('src=%s dst=%s msg="%s"', sourceCall, destCall, message));
+        
+        % Transmit
+        success = tx_chain(message, app.txSDR, sourceCall, destCall);
+        
+        if success
+            addChatMessage(fig, 'System: Message sent ✓');
+            writeLog(fig, 'INFO', 'SEND_OK', 'Message transmitted successfully');
+        else
+            addChatMessage(fig, 'System: Transmission failed ✗');
+            writeLog(fig, 'ERROR', 'SEND_FAIL', 'tx_chain returned false');
+        end
+        
+        % Clear message box
+        app.messageEdit.Value = {''};
+        
+        % Return to RX mode
+        app.stateMachine.finishTransmit();
+        app.sendButton.Enable = 'off';
+        app.requestTXButton.Enable = 'on';
+        updateStatus(fig);
+    catch ME
+        if app.stateMachine.canTransmit()
+            app.stateMachine.finishTransmit();
+        end
+        app.sendButton.Enable = 'off';
+        app.requestTXButton.Enable = 'on';
+        updateStatus(fig);
+        writeLog(fig, 'ERROR', 'SEND_ERROR', ME.message);
+        addChatMessage(fig, sprintf('Send error: %s', ME.message));
     end
-    
-    % Get callsigns
-    sourceCall = app.sourceCallEdit.Value;
-    destCall = app.destCallEdit.Value;
-    
-    addChatMessage(fig, sprintf('You → %s: %s', destCall, message));
-    
-    % Transmit
-    success = tx_chain(message, app.txSDR, sourceCall, destCall);
-    
-    if success
-        addChatMessage(fig, 'System: Message sent ✓');
-    else
-        addChatMessage(fig, 'System: Transmission failed ✗');
-    end
-    
-    % Clear message box
-    app.messageEdit.Value = {''};
-    
-    % Return to RX mode
-    app.stateMachine.finishTransmit();
-    app.sendButton.Enable = 'off';
-    app.requestTXButton.Enable = 'on';
-    updateStatus(fig);
-    
     fig.UserData = app;
 end
 
@@ -278,6 +317,7 @@ function startRXMonitoring(fig)
                         'Period', 2, ...
                         'TimerFcn', @(~,~) checkForMessages(fig));
     start(app.rxTimer);
+    writeLog(fig, 'INFO', 'RX_TIMER_START', 'RX monitor timer started (period=2s)');
     
     fig.UserData = app;
 end
@@ -302,16 +342,20 @@ function checkForMessages(fig)
             
             % Handle ping replies/requests
             if handlePingReply(fig, msgTrim, sourceCall)
+                writeLog(fig, 'INFO', 'RX_PONG_HANDLED', sprintf('source=%s msg="%s"', sourceCall, msgTrim));
                 return;
             end
             
             if handlePingRequest(fig, msgTrim, sourceCall)
+                writeLog(fig, 'INFO', 'RX_PING_HANDLED', sprintf('source=%s msg="%s"', sourceCall, msgTrim));
                 return;
             end
             
+            writeLog(fig, 'INFO', 'RX_MESSAGE', sprintf('source=%s msg="%s"', sourceCall, msgTrim));
             addChatMessage(fig, sprintf('%s: %s', sourceCall, msgTrim));
         end
-    catch
+    catch ME
+        writeLog(fig, 'ERROR', 'RX_ERROR', ME.message);
         % Ignore RX errors
     end
 end
@@ -321,6 +365,7 @@ function addChatMessage(fig, message)
     timestamp = datestr(now, 'HH:MM:SS');
     newMsg = sprintf('[%s] %s', timestamp, message);
     app.chatDisplay.Value = [app.chatDisplay.Value; {newMsg}];
+    writeLog(fig, 'CHAT', 'CHAT_MESSAGE', message);
     
     % Auto-scroll to bottom
     scroll(app.chatDisplay, 'bottom');
@@ -331,46 +376,65 @@ end
 function updateStatus(fig)
     app = fig.UserData;
     app.statusLabel.Text = app.stateMachine.getStateString();
+    writeLog(fig, 'INFO', 'STATE_UPDATE', sprintf('state=%s statusLabel=%s', app.stateMachine.state, app.statusLabel.Text));
     fig.UserData = app;
 end
 
 function pingPeer(fig)
     app = fig.UserData;
-    
-    if isempty(app.txSDR) || isempty(app.rxSDR)
-        addChatMessage(fig, 'System: Connect radios before pinging');
-        return;
+    try
+        addChatMessage(fig, 'System: Preparing ping...');
+        writeLog(fig, 'INFO', 'PING_START', 'Preparing ping');
+        
+        if isempty(app.txSDR) || isempty(app.rxSDR)
+            addChatMessage(fig, 'System: Connect radios before pinging');
+            return;
+        end
+        
+        if ~app.stateMachine.requestTransmit()
+            addChatMessage(fig, 'System: TX busy. Try again.');
+            writeLog(fig, 'WARN', 'PING_TX_BUSY', sprintf('state=%s', app.stateMachine.state));
+            return;
+        end
+        
+        app.pingId = randi([0, 1e6]);
+        app.pingStart = tic;
+        app.pingPending = true;
+        updateStatus(fig);
+        fig.UserData = app;
+        
+        src = app.sourceCallEdit.Value;
+        dst = app.destCallEdit.Value;
+        
+        addChatMessage(fig, sprintf('System: PING → %s', dst));
+        writeLog(fig, 'INFO', 'PING_TX', sprintf('dst=%s pingId=%d', dst, app.pingId));
+        success = tx_chain(sprintf('PING:%d', app.pingId), app.txSDR, src, dst);
+        
+        app = fig.UserData;
+        
+        if success
+            addChatMessage(fig, 'System: Ping sent. Waiting for reply...');
+            writeLog(fig, 'INFO', 'PING_SENT', sprintf('pingId=%d', app.pingId));
+        else
+            addChatMessage(fig, 'System: Ping transmit failed');
+            writeLog(fig, 'ERROR', 'PING_SEND_FAIL', sprintf('pingId=%d', app.pingId));
+            app.pingPending = false;
+        end
+        
+        app.stateMachine.finishTransmit();
+        updateStatus(fig);
+        fig.UserData = app;
+    catch ME
+        if app.stateMachine.canTransmit()
+            app.stateMachine.finishTransmit();
+        end
+        app.sendButton.Enable = 'off';
+        app.requestTXButton.Enable = 'on';
+        updateStatus(fig);
+        fig.UserData = app;
+        writeLog(fig, 'ERROR', 'PING_ERROR', ME.message);
+        addChatMessage(fig, sprintf('Ping error: %s', ME.message));
     end
-    
-    if ~app.stateMachine.requestTransmit()
-        addChatMessage(fig, 'System: TX busy. Try again.');
-        return;
-    end
-    
-    app.pingId = randi([0, 1e6]);
-    app.pingStart = tic;
-    app.pingPending = true;
-    updateStatus(fig);
-    fig.UserData = app;
-    
-    src = app.sourceCallEdit.Value;
-    dst = app.destCallEdit.Value;
-    
-    addChatMessage(fig, sprintf('System: PING → %s', dst));
-    success = tx_chain(sprintf('PING:%d', app.pingId), app.txSDR, src, dst);
-    
-    app = fig.UserData;
-    
-    if success
-        addChatMessage(fig, 'System: Ping sent. Waiting for reply...');
-    else
-        addChatMessage(fig, 'System: Ping transmit failed');
-        app.pingPending = false;
-    end
-    
-    app.stateMachine.finishTransmit();
-    updateStatus(fig);
-    fig.UserData = app;
 end
 
 function handled = handlePingReply(fig, msgTrim, sourceCall)
@@ -386,6 +450,7 @@ function handled = handlePingReply(fig, msgTrim, sourceCall)
         
         if app.pingPending && ~isnan(pongId) && pongId == app.pingId
             rttMs = round(toc(app.pingStart) * 1000);
+            writeLog(fig, 'INFO', 'PING_RTT', sprintf('source=%s pingId=%d rttMs=%d', sourceCall, pongId, rttMs));
             addChatMessage(fig, sprintf('System: Pong from %s in %d ms', sourceCall, rttMs));
             app.pingPending = false;
             fig.UserData = app;
@@ -419,6 +484,7 @@ function sendPong(fig, destCall, pingId)
     
     if ~app.stateMachine.requestTransmit()
         addChatMessage(fig, 'System: Busy, unable to answer ping right now');
+        writeLog(fig, 'WARN', 'PONG_BUSY', sprintf('dest=%s pingId=%s', destCall, pingId));
         return;
     end
     
@@ -428,11 +494,66 @@ function sendPong(fig, destCall, pingId)
     
     if success
         addChatMessage(fig, sprintf('System: Pong → %s', destCall));
+        writeLog(fig, 'INFO', 'PONG_SENT', sprintf('dest=%s pingId=%s', destCall, pingId));
     else
         addChatMessage(fig, sprintf('System: Failed to respond to ping from %s', destCall));
+        writeLog(fig, 'ERROR', 'PONG_FAIL', sprintf('dest=%s pingId=%s', destCall, pingId));
     end
     
     app.stateMachine.finishTransmit();
     updateStatus(fig);
     fig.UserData = app;
+end
+
+function [logFile, instanceId] = initLogFile()
+    timestamp = datestr(now, 'yyyymmdd_HHMMSSFFF');
+    pid = feature('getpid');
+    uniqueSuffix = randi([1000, 9999]);
+    instanceId = sprintf('pid%d_%s_%d', pid, timestamp, uniqueSuffix);
+    logDir = fullfile(pwd, 'logs');
+    if ~exist(logDir, 'dir')
+        mkdir(logDir);
+    end
+    logFile = fullfile(logDir, sprintf('gui_app_%s.txt', instanceId));
+    fid = fopen(logFile, 'a');
+    if fid ~= -1
+        fprintf(fid, '=== GUI APP LOG START ===\n');
+        fprintf(fid, 'time=%s\n', datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF'));
+        fprintf(fid, 'instance=%s\n', instanceId);
+        fprintf(fid, 'cwd=%s\n', pwd);
+        fprintf(fid, '=========================\n');
+        fclose(fid);
+    end
+end
+
+function writeLog(fig, level, eventName, details)
+    if nargin < 4
+        details = '';
+    end
+
+    try
+        app = fig.UserData;
+        if isempty(app) || ~isfield(app, 'logFile') || isempty(app.logFile)
+            return;
+        end
+
+        fid = fopen(app.logFile, 'a');
+        if fid == -1
+            return;
+        end
+
+        ts = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
+        stateText = 'NA';
+        if isfield(app, 'stateMachine') && ~isempty(app.stateMachine)
+            stateText = app.stateMachine.state;
+        end
+
+        details = char(string(details));
+        details = strrep(details, sprintf('\n'), '\\n');
+        details = strrep(details, sprintf('\r'), '');
+        fprintf(fid, '[%s] [%s] [%s] [state=%s] %s\n', ts, level, eventName, stateText, details);
+        fclose(fid);
+    catch
+        % Logging must never break app behavior.
+    end
 end

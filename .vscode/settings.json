@@ -6,6 +6,7 @@
     "/^python -c \"import os; os\\.makedirs\\(r'c:\\\\Users\\\\josec\\\\Desktop\\\\SDR_MS\\\\src', exist_ok=True\\); os\\.makedirs\\(r'c:\\\\Users\\\\josec\\\\Desktop\\\\SDR_MS\\\\tests', exist_ok=True\\); os\\.makedirs\\(r'c:\\\\Users\\\\josec\\\\Desktop\\\\SDR_MS\\\\docs', exist_ok=True\\); print\\('Directories created'\\)\"$/": {
       "approve": true,
       "matchCommandLine": true
-    }
+    },
+    "ForEach-Object": true
   }
 }

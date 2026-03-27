@@ -1,0 +1,16 @@
+=== GUI APP LOG START ===
+time=2026-03-27 13:37:52.424
+instance=pid1916_20260327_133752421_2142
+cwd=C:\Users\josec\Desktop\SDR_MS
+=========================
+[2026-03-27 13:37:52.467] [INFO] [APP_START] [state=IDLE] GUI initialized
+[2026-03-27 13:37:52.467] [INFO] [DETECT_START] [state=IDLE] Detecting Pluto radios
+[2026-03-27 13:37:52.482] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Detecting Pluto radios...
+[2026-03-27 13:37:52.827] [INFO] [DETECT_FOUND] [state=IDLE] Found 2 radio(s): usb:0,usb:1
+[2026-03-27 13:37:52.832] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Found 2 radio(s)
+[2026-03-27 13:38:02.404] [INFO] [CONNECT_START] [state=IDLE] TX=usb:0 RX=usb:0
+[2026-03-27 13:38:02.404] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Connecting TX: usb:0, RX: usb:0...
+[2026-03-27 13:38:02.746] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: ✓ Connected successfully!
+[2026-03-27 13:38:02.748] [INFO] [CONNECT_OK] [state=IDLE] Connected successfully
+[2026-03-27 13:38:02.751] [INFO] [STATE_UPDATE] [state=RECEIVE] state=RECEIVE statusLabel=🔵 RX
+[2026-03-27 13:38:02.777] [INFO] [RX_TIMER_START] [state=RECEIVE] RX monitor timer started (period=2s)

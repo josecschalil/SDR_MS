@@ -1,0 +1,20 @@
+=== GUI APP LOG START ===
+time=2026-03-27 13:39:25.855
+instance=pid1916_20260327_133925853_6691
+cwd=C:\Users\josec\Desktop\SDR_MS
+=========================
+[2026-03-27 13:39:25.907] [INFO] [APP_START] [state=IDLE] GUI initialized
+[2026-03-27 13:39:25.909] [INFO] [DETECT_START] [state=IDLE] Detecting Pluto radios
+[2026-03-27 13:39:25.918] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Detecting Pluto radios...
+[2026-03-27 13:39:26.256] [INFO] [DETECT_FOUND] [state=IDLE] Found 2 radio(s): usb:0,usb:1
+[2026-03-27 13:39:26.256] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Found 2 radio(s)
+[2026-03-27 13:39:31.246] [INFO] [DETECT_START] [state=IDLE] Detecting Pluto radios
+[2026-03-27 13:39:31.246] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Detecting Pluto radios...
+[2026-03-27 13:39:31.575] [INFO] [DETECT_FOUND] [state=IDLE] Found 2 radio(s): usb:0,usb:1
+[2026-03-27 13:39:31.587] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Found 2 radio(s)
+[2026-03-27 13:39:36.623] [INFO] [CONNECT_START] [state=IDLE] TX=usb:0 RX=usb:0
+[2026-03-27 13:39:36.623] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: Connecting TX: usb:0, RX: usb:0...
+[2026-03-27 13:39:36.957] [CHAT] [CHAT_MESSAGE] [state=IDLE] System: ✓ Connected successfully!
+[2026-03-27 13:39:36.957] [INFO] [CONNECT_OK] [state=IDLE] Connected successfully
+[2026-03-27 13:39:36.973] [INFO] [STATE_UPDATE] [state=RECEIVE] state=RECEIVE statusLabel=🔵 RX
+[2026-03-27 13:39:36.973] [INFO] [RX_TIMER_START] [state=RECEIVE] RX monitor timer started (period=2s)
