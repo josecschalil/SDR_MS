@@ -171,7 +171,7 @@ function connectCallback(~, ~, fig)
         
         addChat(fig, sprintf('System: Connecting TX:%s RX:%s...', txID, rxID));
         
-        [data.txSDR, data.rxSDR, ~] = pluto_config(txID, rxID, 145e6, 0, 20);
+        [data.txSDR, data.rxSDR, ~] = pluto_config(txID, rxID, 433e6, 0, 20);
         
         if ~isempty(data.txSDR) && ~isempty(data.rxSDR)
             addChat(fig, 'System: Connected!');

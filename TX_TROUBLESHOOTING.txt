@@ -1,0 +1,273 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║          TRANSMISSION FAILED - TROUBLESHOOTING                    ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+SYMPTOMS
+════════════════════════════════════════════════════════════════════
+You saw:
+  [11:52:40] System: ✓ Connected successfully!  ← Good!
+  [11:52:51] System: TX granted                  ← Good!
+  [11:53:04] You → CS: hh                        ← Message entered
+  [11:53:07] System: Transmission failed ✗       ← Problem here
+
+
+DIAGNOSIS STEPS
+════════════════════════════════════════════════════════════════════
+
+Step 1: Check MATLAB Console
+  • Look for error messages in MATLAB command window
+  • tx_chain.m prints detailed error info
+  • Copy any error messages you see
+
+Step 2: Run Simple TX Test
+  >> simple_tx_test
+  
+  This tests basic transmission without full chain.
+  If this works → problem is in tx_chain
+  If this fails → problem is with SDR object
+
+Step 3: Run Debug TX
+  >> debug_tx
+  
+  This tests each component step-by-step:
+    - AX.25 encoding
+    - AFSK modulation
+    - FM modulation
+    - SDR transmission
+  
+  Find which step fails.
+
+
+MOST LIKELY CAUSES
+════════════════════════════════════════════════════════════════════
+
+1. SDR OBJECT IS LOCKED ⭐ (Most Common)
+   
+   Problem: MATLAB SDR objects can get "locked" after configuration
+   
+   Solution:
+   >> release(tx)  % Release the object
+   
+   Or restart GUI:
+   >> close all
+   >> main
+
+
+2. SAMPLE RATE MISMATCH
+   
+   Problem: Signal has wrong number of samples
+   
+   Check: Look for error message mentioning "samples" or "size"
+   
+   Solution: tx_chain should handle this automatically
+
+
+3. SIGNAL AMPLITUDE ISSUE
+   
+   Problem: Signal too large or too small
+   
+   Check: Error about "clipping" or "overflow"
+   
+   Solution: Already normalized in tx_chain (line 74)
+
+
+4. DEVICE BUSY
+   
+   Problem: Another application is using Pluto
+   
+   Check: Close any other software accessing Pluto
+          (SDR#, GNU Radio, etc.)
+   
+   Solution: Close other applications, restart MATLAB
+
+
+5. USB POWER/CONNECTION
+   
+   Problem: USB port doesn't provide enough power
+   
+   Solution: Try different USB port (USB 3.0 preferred)
+
+
+QUICK FIXES TO TRY
+════════════════════════════════════════════════════════════════════
+
+Fix 1: Restart Everything
+  1. Close GUI
+  2. In MATLAB: >> clear all
+  3. Unplug Pluto, wait 10 seconds
+  4. Replug Pluto
+  5. Run: >> main
+
+Fix 2: Use Command Line First
+  >> [tx, rx] = pluto_config('usb:0', 'usb:0', 145e6, -10, 30)
+  >> tx_chain('Test', tx, 'TEST', 'CQ')
+  
+  Watch MATLAB console for error messages
+
+Fix 3: Check Object Type
+  >> [tx, rx] = pluto_config('usb:0', 'usb:0', 145e6, -10, 30)
+  >> class(tx)
+  
+  Should show: comm.SDRTxPluto or similar
+
+Fix 4: Manual Release
+  In MATLAB console:
+  >> release(tx)
+  >> release(rx)
+  Then try again
+
+
+CHECKING MATLAB CONSOLE OUTPUT
+════════════════════════════════════════════════════════════════════
+
+When tx_chain runs, you should see:
+
+  --- TX Chain Started ---
+  Message: "hh"
+  From: TEST1  To: CS
+  Step 1: AX.25 encoding... <number> bits
+  Step 2: AFSK modulation... <number> samples
+  Step 3: FM modulation... <number> samples
+  Step 4: Transmitting via SDR...
+  Transmission complete!
+  --- TX Chain Finished ---
+
+If you DON'T see this, or if it stops partway:
+  1. Note which step failed
+  2. Look for error message
+  3. Run debug_tx to investigate that specific step
+
+
+COMMON ERROR MESSAGES
+════════════════════════════════════════════════════════════════════
+
+Error: "System object is locked"
+  Fix: release(tx); release(rx);
+
+Error: "Device is busy"  
+  Fix: Close other apps using Pluto, restart MATLAB
+
+Error: "Unable to transmit"
+  Fix: Check USB connection, try different port
+
+Error: "Sample rate mismatch"
+  Fix: Verify txSDR.BasebandSampleRate == 2.4e6
+
+Error: "Invalid data type"
+  Fix: Ensure signal is complex double
+
+
+VERBOSE DEBUGGING
+════════════════════════════════════════════════════════════════════
+
+To get maximum debug info:
+
+1. Open tx_chain.m in editor
+2. Add breakpoint at line 36 (after try statement)
+3. Run transmission from GUI
+4. When it stops, check variables:
+   >> whos
+   >> txSDR
+   >> class(txSDR)
+
+5. Step through code line by line:
+   >> dbstep
+   
+6. Continue until error occurs
+7. Check error message:
+   >> ME.message
+
+
+WORKAROUND: TEST WITHOUT SDR
+════════════════════════════════════════════════════════════════════
+
+You can test the signal processing without transmitting:
+
+>> test_chain
+
+This verifies:
+  ✓ AX.25 encoding/decoding
+  ✓ AFSK modulation/demodulation  
+  ✓ FM modulation/demodulation
+  ✓ Complete chain
+
+If test_chain passes → hardware/transmission issue
+If test_chain fails → signal processing issue
+
+
+MANUAL TRANSMISSION TEST
+════════════════════════════════════════════════════════════════════
+
+Try this in MATLAB console:
+
+% Configure
+>> [tx, rx] = pluto_config('usb:0', 'usb:0', 145e6, -10, 30)
+
+% Check it worked
+>> class(tx)
+>> tx.CenterFrequency
+
+% Create simple signal
+>> fs = tx.BasebandSampleRate;
+>> t = (0:1000-1) / fs;
+>> sig = 0.5 * exp(1j * 2 * pi * 1000 * t);
+
+% Try to transmit
+>> tx(sig(:))
+
+If this works → problem is in tx_chain
+If this fails → problem is with SDR setup
+
+
+ADVANCED: CHECK SDR CONFIGURATION
+════════════════════════════════════════════════════════════════════
+
+In MATLAB console after connecting:
+
+>> tx.CenterFrequency
+   Should be: 145000000 (145 MHz)
+
+>> tx.BasebandSampleRate  
+   Should be: 2400000 (2.4 Msps)
+
+>> tx.Gain
+   Should be: -10 or 0
+
+>> methods(tx)
+   Shows available methods
+
+>> properties(tx)
+   Shows all properties
+
+
+WHAT TO REPORT
+════════════════════════════════════════════════════════════════════
+
+If still failing, report:
+
+1. Output of: >> simple_tx_test
+
+2. Any error messages from MATLAB console
+
+3. Output of:
+   >> [tx, rx] = pluto_config('usb:0', 'usb:0', 145e6, -10, 30)
+   >> class(tx)
+   >> tx
+
+4. Result of manual transmission test above
+
+
+NEXT STEPS
+════════════════════════════════════════════════════════════════════
+
+1. Check MATLAB console for error messages
+2. Run: >> simple_tx_test
+3. Run: >> debug_tx
+4. Try: Close GUI, clear all, restart
+5. Report which step in debug_tx fails
+
+
+═══════════════════════════════════════════════════════════════════
+Most transmission failures are due to locked SDR objects.
+Try: release(tx); release(rx); then reconnect in GUI.
+═══════════════════════════════════════════════════════════════════

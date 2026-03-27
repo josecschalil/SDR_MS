@@ -15,7 +15,7 @@ function [txSDR, rxSDR, availableRadios] = pluto_config(txRadioID, rxRadioID, ce
 
     % Default parameters
     if nargin < 3
-        centerFreq = 145e6; % 145 MHz
+        centerFreq = 433e6; % 433 MHz (ISM band - within default Pluto range)
     end
     if nargin < 4
         txGain = 0; % dB

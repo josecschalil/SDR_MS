@@ -183,7 +183,7 @@ function connectRadios(fig)
         addChatMessage(fig, sprintf('System: Connecting TX: %s, RX: %s...', txID, rxID));
         
         % Configure radios
-        [app.txSDR, app.rxSDR, ~] = pluto_config(txID, rxID, 145e6, 0, 20);
+        [app.txSDR, app.rxSDR, ~] = pluto_config(txID, rxID, 433e6, 0, 20);
         
         if ~isempty(app.txSDR) && ~isempty(app.rxSDR)
             addChatMessage(fig, 'System: ✓ Connected successfully!');

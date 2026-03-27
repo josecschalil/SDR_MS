@@ -1,0 +1,222 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║         PLUTO FREQUENCY RANGE - IMPORTANT INFORMATION             ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+THE ISSUE
+════════════════════════════════════════════════════════════════════
+
+You encountered this error:
+  "Failed to update LO for device: cf-ad9361-dds-core-lpc. 
+   Specified center frequency is outside factory default range."
+
+This means your Pluto is in factory default configuration which limits
+the frequency range.
+
+
+PLUTO FREQUENCY MODES
+════════════════════════════════════════════════════════════════════
+
+Factory Default (AD9363 mode):
+  • TX: 325 MHz - 3.8 GHz
+  • RX: 325 MHz - 3.8 GHz
+  • This is the default to prevent accidental transmission on 
+    restricted frequencies
+
+Full Range (AD9364 mode):
+  • TX: 47 MHz - 6 GHz
+  • RX: 70 MHz - 6 GHz
+  • Unlocks the full capability of the AD9364 chip
+
+
+THE SOLUTION - Two Options
+════════════════════════════════════════════════════════════════════
+
+╔═══════════════════════════════════════════════════════════════════╗
+║  OPTION 1: UNLOCK FULL RANGE (for 145 MHz)                       ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+To use 145 MHz (VHF amateur band), you must unlock your Pluto:
+
+Step 1: Run Configuration Command
+  >> configurePlutoRadio('AD9364','usb:0')
+
+Step 2: Wait for Completion
+  • Takes about 30 seconds
+  • Pluto will reboot automatically
+  • LED will blink during reboot
+
+Step 3: Verify
+  • Unplug Pluto
+  • Wait 10 seconds
+  • Replug Pluto
+  • Restart MATLAB
+
+Step 4: Test
+  >> [tx, rx] = pluto_config('usb:0', 'usb:0', 145e6, 0, 20)
+  Should now work!
+
+
+╔═══════════════════════════════════════════════════════════════════╗
+║  OPTION 2: USE DIFFERENT FREQUENCY (quick test)                  ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+Use a frequency within the default range:
+
+Recommended Frequencies:
+  • 433 MHz - ISM band (most regions)
+  • 915 MHz - ISM band (US)
+  • 2.4 GHz - WiFi/ISM band
+  • 868 MHz - ISM band (Europe)
+
+I've updated the default to 433 MHz for you!
+
+Just run:
+  >> main
+
+And it will use 433 MHz automatically.
+
+
+IMPORTANT LEGAL/SAFETY NOTES
+════════════════════════════════════════════════════════════════════
+
+⚠️  145 MHz (VHF) - Amateur Radio Band
+  • Requires amateur radio license in most countries
+  • License-free use is illegal
+  • Can cause interference with emergency services
+
+✓  433 MHz - ISM Band
+  • License-free in most regions (check locally)
+  • Low power operation typically allowed
+  • Still check local regulations
+
+⚠️  Before Transmitting on ANY Frequency:
+  1. Check local spectrum regulations
+  2. Ensure you have appropriate license (if required)
+  3. Use appropriate power levels
+  4. Monitor frequency before transmitting
+  5. Be a responsible spectrum user
+
+
+DETAILED CONFIGURATION STEPS
+════════════════════════════════════════════════════════════════════
+
+To Unlock Full Range (AD9364 Mode):
+
+Method 1: MATLAB Command (Easiest)
+  >> configurePlutoRadio('AD9364','usb:0')
+  
+  This automatically:
+  • Updates config.txt on Pluto
+  • Reboots device
+  • Verifies changes
+
+Method 2: Manual Configuration
+  1. Pluto appears as mass storage device (drive letter)
+  2. Open config.txt file
+  3. Change line:
+       ad9361_phy_mode = ad9363a
+     to:
+       ad9361_phy_mode = ad9364
+  4. Save file
+  5. Safely eject drive
+  6. Unplug/replug Pluto
+
+Method 3: Web Interface
+  1. Navigate to: http://192.168.2.1
+  2. Go to Config tab
+  3. Change Model to AD9364
+  4. Click Apply
+  5. Reboot
+
+
+VERIFYING CONFIGURATION
+════════════════════════════════════════════════════════════════════
+
+Check Current Mode:
+  1. Open browser: http://192.168.2.1
+  2. Click "Config" tab
+  3. Look for "Model" field
+  4. Should show: AD9364 (if unlocked)
+
+Test Frequency Range:
+  >> tx = sdrtx('Pluto','RadioID','usb:0')
+  >> tx.CenterFrequency = 145e6
+  >> tx.CenterFrequency
+  
+  If shows 145000000 → Success!
+  If error → Still in AD9363 mode
+
+
+FREQUENCY RECOMMENDATIONS BY USE CASE
+════════════════════════════════════════════════════════════════════
+
+For Learning/Testing:
+  • Use 433 MHz (default range)
+  • No configuration needed
+  • Works immediately
+
+For Amateur Radio:
+  • Get amateur radio license
+  • Unlock to AD9364 mode
+  • Use 145 MHz (2m band) or 433 MHz (70cm band)
+
+For ISM Band:
+  • Check local regulations
+  • 433 MHz (most regions)
+  • 915 MHz (Americas)
+  • 868 MHz (Europe)
+  • 2.4 GHz (worldwide)
+
+
+TROUBLESHOOTING
+════════════════════════════════════════════════════════════════════
+
+Problem: configurePlutoRadio doesn't work
+  • Check MATLAB has Pluto support installed
+  • Try manual method (edit config.txt)
+  • Ensure Pluto is connected
+
+Problem: Frequency still out of range after unlock
+  • Unplug Pluto completely
+  • Wait 30 seconds
+  • Reconnect
+  • Restart MATLAB
+  • Try again
+
+Problem: Want to go back to default range
+  >> configurePlutoRadio('AD9363A','usb:0')
+  
+  This restores factory defaults
+
+
+WHAT I CHANGED FOR YOU
+════════════════════════════════════════════════════════════════════
+
+Updated default frequency from 145 MHz → 433 MHz in:
+  ✓ pluto_config.m (line 18)
+  ✓ gui_simple.m (line 177)
+  ✓ gui_app.m (line 179)
+
+Now when you run the GUI, it will use 433 MHz by default,
+which works without unlocking your Pluto!
+
+
+QUICK START NOW
+════════════════════════════════════════════════════════════════════
+
+Just run:
+  >> main
+
+Your system will now use 433 MHz and should work immediately!
+
+For 145 MHz operation:
+  >> configurePlutoRadio('AD9364','usb:0')
+  Wait for reboot, then use 145 MHz
+
+
+═══════════════════════════════════════════════════════════════════
+SUMMARY:
+  • Default frequency changed to 433 MHz ✓
+  • Works without Pluto reconfiguration ✓
+  • To use 145 MHz: configurePlutoRadio('AD9364','usb:0')
+═══════════════════════════════════════════════════════════════════
