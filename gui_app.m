@@ -294,8 +294,8 @@ function checkForMessages(fig)
     end
     
     try
-        % Quick RX check (1 second)
-        [message, valid, sourceCall, ~] = rx_chain(app.rxSDR, 1);
+        % Quick RX check (2 seconds to reduce missed bursts)
+        [message, valid, sourceCall, ~] = rx_chain(app.rxSDR, 2);
         
         if valid && ~isempty(message)
             msgTrim = strtrim(message);

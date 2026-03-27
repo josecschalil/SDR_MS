@@ -328,7 +328,7 @@ function checkForMessages(fig)
     end
     
     try
-        [message, valid, sourceCall, ~] = rx_chain(data.rxSDR, 1);
+        [message, valid, sourceCall, ~] = rx_chain(data.rxSDR, 2);
         
         if valid && ~isempty(message)
             msgTrim = strtrim(message);
