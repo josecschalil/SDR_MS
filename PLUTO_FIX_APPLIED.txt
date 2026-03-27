@@ -1,0 +1,190 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║                  PLUTO DETECTION - FIXED! ✅                      ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+PROBLEM IDENTIFIED
+════════════════════════════════════════════════════════════════════
+
+The diagnostic showed that:
+  ✓ Pluto IS connected and working
+  ✓ MATLAB CAN detect it (found RadioID: usb:0)
+  ✓ All toolboxes and functions are available
+
+BUT the GUI wasn't showing it because:
+  ✗ gui_app.m line 141 was capturing the WRONG return value
+  
+  OLD CODE (WRONG):
+    app.availableRadios = pluto_config();
+    
+  This captured txSDR (first output), not availableRadios (third output)
+
+
+THE FIX
+════════════════════════════════════════════════════════════════════
+
+FIXED CODE:
+  [~, ~, app.availableRadios] = pluto_config();
+  
+This now correctly captures the third output (availableRadios).
+
+
+HOW TO VERIFY THE FIX
+════════════════════════════════════════════════════════════════════
+
+Method 1: Quick Test Script
+  >> test_pluto_fix
+  
+  Should show:
+    ✓ SUCCESS! Detected 1 radio(s):
+      [1] RadioID: usb:0
+
+Method 2: Launch GUI
+  >> main
+  
+  Then click "Detect" button - should now show your Pluto!
+
+
+WHAT WAS YOUR PLUTO'S INFO
+════════════════════════════════════════════════════════════════════
+
+From the diagnostic:
+  RadioID: usb:0
+  Serial:  1044739a470b000816002b00b5e37fcf3e
+  
+This should now appear in the GUI dropdowns!
+
+
+TESTING WITH YOUR PLUTO
+════════════════════════════════════════════════════════════════════
+
+Now that it's working, test the complete system:
+
+1. Launch GUI:
+   >> main
+
+2. Click "Detect" button
+   Should show: Found 1 radio(s)
+   
+3. Select radios:
+   TX Radio: usb:0
+   RX Radio: usb:0 (same radio for loopback)
+
+4. Click "Connect"
+   Should show: Connected successfully!
+
+5. For loopback test:
+   ⚠️ Connect TX antenna to RX antenna with 20-30 dB attenuator!
+   Do NOT connect directly - will damage receiver!
+
+6. Send test message:
+   - Enter callsigns (Source: TEST1, Dest: TEST2)
+   - Type message
+   - Click "Request TX"
+   - Click "Send"
+   - Should receive your own message (loopback)
+
+
+SINGLE PLUTO USAGE
+════════════════════════════════════════════════════════════════════
+
+Since you have 1 Pluto, you can:
+
+Option A: Loopback Test (TX → RX on same radio)
+  • Connect TX to RX with attenuator
+  • Use same radio for both TX and RX
+  • Good for testing signal processing
+
+Option B: One-Way Communication
+  • Configure as TX only
+  • Send to another receiver (RTL-SDR, etc.)
+  
+Option C: Get Second Pluto
+  • For full duplex communication
+  • Each station has own radio
+
+
+ALTERNATIVE: TWO PLUTOS
+════════════════════════════════════════════════════════════════════
+
+If you get a second Pluto:
+  1. Connect both via USB
+  2. Run diagnostic - should find 2 radios
+  3. GUI will show both (usb:0 and usb:1)
+  4. Select usb:0 for TX, usb:1 for RX
+  5. Can communicate between them wirelessly!
+
+
+FILES UPDATED
+════════════════════════════════════════════════════════════════════
+
+1. gui_app.m - Fixed detection (line 141)
+   OLD: app.availableRadios = pluto_config();
+   NEW: [~, ~, app.availableRadios] = pluto_config();
+
+2. test_pluto_fix.m - NEW verification script
+
+
+COMMAND-LINE VERIFICATION
+════════════════════════════════════════════════════════════════════
+
+You can also verify directly in MATLAB:
+
+>> [~, ~, radios] = pluto_config()
+
+Should print:
+  Detecting ADALM-Pluto radios...
+  Found 1 Pluto radio(s):
+    [1] RadioID: usb:0
+
+Then check:
+  >> radios.RadioID
+  ans = 'usb:0'
+
+
+NEXT STEPS
+════════════════════════════════════════════════════════════════════
+
+1. Run test_pluto_fix to verify:
+   >> test_pluto_fix
+
+2. Launch GUI and test:
+   >> main
+
+3. Try sending a test transmission:
+   >> [tx, rx] = pluto_config('usb:0', 'usb:0', 145e6, 0, 20)
+   >> tx_chain('Test', tx, 'TEST', 'CQ')
+
+4. Check the full demo:
+   >> demo
+
+
+SUCCESS INDICATORS
+════════════════════════════════════════════════════════════════════
+
+You'll know it's working when:
+  ✓ GUI shows "Found 1 radio(s)"
+  ✓ Dropdowns show "usb:0"
+  ✓ Connect button works without error
+  ✓ Status changes to "RX" after connecting
+  ✓ Can send test messages
+
+
+TROUBLESHOOTING (If Still Issues)
+════════════════════════════════════════════════════════════════════
+
+If GUI still doesn't work after fix:
+  1. Close all MATLAB figures
+  2. Clear workspace: >> clear all
+  3. Relaunch: >> main
+
+If detection fails:
+  1. Unplug Pluto, wait 10 seconds
+  2. Replug into different USB port
+  3. Run: >> pluto_diagnostic
+  4. Should still show radio detected
+
+
+═══════════════════════════════════════════════════════════════════
+                    🎉 Your Pluto is READY! 📡
+             GUI fix applied - detection should work now!
+═══════════════════════════════════════════════════════════════════

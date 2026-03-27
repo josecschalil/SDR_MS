@@ -137,8 +137,8 @@ function detectRadios(fig)
     addChatMessage(fig, 'System: Detecting Pluto radios...');
     
     try
-        % Detect radios
-        app.availableRadios = pluto_config();
+        % Detect radios (get third output - availableRadios)
+        [~, ~, app.availableRadios] = pluto_config();
         
         if ~isempty(app.availableRadios)
             radioNames = cell(1, length(app.availableRadios));

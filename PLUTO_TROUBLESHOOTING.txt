@@ -1,0 +1,254 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║           PLUTO NOT DETECTED - TROUBLESHOOTING GUIDE              ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+QUICK DIAGNOSIS
+════════════════════════════════════════════════════════════════════
+
+Run this diagnostic script first:
+  >> pluto_diagnostic
+
+This will check:
+  ✓ MATLAB toolboxes installed
+  ✓ Pluto support functions available
+  ✓ Multiple detection methods
+  ✓ System-level device visibility
+
+
+MOST COMMON CAUSES & FIXES
+════════════════════════════════════════════════════════════════════
+
+1. PLUTO SUPPORT PACKAGE NOT INSTALLED ⭐ (Most Common)
+   
+   Fix:
+   >> supportPackageInstaller
+   
+   • Search for "ADALM-Pluto"
+   • Click Install
+   • Restart MATLAB
+   • Try again
+
+
+2. DRIVERS NOT INSTALLED (Windows)
+   
+   Check:
+   • Open Device Manager
+   • Look for "ADALM-PLUTO" under USB devices
+   • If shows "Unknown Device", drivers missing
+   
+   Fix:
+   • Download: PlutoSDR-M2k-USB-Drivers.exe
+   • From: https://wiki.analog.com/university/tools/pluto/drivers/windows
+   • Install drivers
+   • Unplug/replug Pluto
+   • Try again
+
+
+3. USB CONNECTION ISSUE
+   
+   Fix:
+   • Unplug Pluto, wait 10 seconds
+   • Plug into DIFFERENT USB port (try USB 3.0)
+   • Check LED on Pluto is blinking (heartbeat)
+   • Try again
+
+
+4. PLUTO IN WRONG MODE
+   
+   Check:
+   • Open browser: http://192.168.2.1
+   • Should see Pluto web interface
+   • If not accessible, Pluto might be in mass storage mode
+   
+   Fix:
+   • Safely eject "PlutoSDR" drive if it appears
+   • Unplug and reconnect
+   • Wait for heartbeat LED
+
+
+ALTERNATIVE CONNECTION METHOD
+════════════════════════════════════════════════════════════════════
+
+If auto-detection fails, try IP address method:
+
+1. Find Pluto IP address:
+   • Usually: 192.168.2.1 (USB mode)
+   • Or check: http://pluto.local
+   
+2. Use alternative config:
+   >> pluto_config_alt
+   
+   This tries multiple connection methods including IP address
+
+
+STEP-BY-STEP VERIFICATION
+════════════════════════════════════════════════════════════════════
+
+Step 1: Physical Connection
+  □ USB cable connected firmly
+  □ Pluto LED blinking (heartbeat pattern)
+  □ Different USB port tried (USB 3.0 preferred)
+
+Step 2: System Recognition
+  Windows:
+    □ Device Manager shows "ADALM-PLUTO"
+    □ Not listed as "Unknown Device"
+  
+  Linux:
+    □ lsusb shows "Analog Devices" device
+    □ User in plugdev group
+
+Step 3: Network Access
+  □ Can access http://192.168.2.1 in browser
+  □ Pluto web interface loads
+  □ Shows firmware version
+
+Step 4: MATLAB Setup
+  □ Communications Toolbox installed
+  □ PlutoSDR Support Package installed
+  □ supportPackageInstaller shows Pluto as installed
+  □ findPlutoRadio function exists
+
+Step 5: Test Connection
+  □ Run: pluto_diagnostic
+  □ All checks pass
+  □ Radio detected
+
+
+MANUAL TEST COMMANDS
+════════════════════════════════════════════════════════════════════
+
+Try these in MATLAB command window:
+
+% Check if function exists
+>> exist('findPlutoRadio', 'file')
+   Should return: 2 (if installed)
+
+% Try to find radios
+>> radios = findPlutoRadio()
+   Should return: radio structure (if connected)
+
+% Try IP address method
+>> rx = sdrrx('Pluto', 'IPAddress', '192.168.2.1')
+   Should create object without error
+
+% Create test object
+>> rx = comm.SDRRxPluto()
+   Alternative method (System Object)
+
+
+COMMON ERROR MESSAGES
+════════════════════════════════════════════════════════════════════
+
+Error: "Undefined function 'findPlutoRadio'"
+  → PlutoSDR Support Package not installed
+  → Run: supportPackageInstaller
+
+Error: "No devices found"
+  → Pluto not connected or drivers missing
+  → Check Device Manager / lsusb
+  → Install drivers
+
+Error: "Cannot connect to device"
+  → USB issue or device in wrong mode
+  → Try different USB port
+  → Check web interface http://192.168.2.1
+
+Error: "License checkout failed"
+  → Communications Toolbox not installed
+  → Check MATLAB license includes required toolboxes
+
+
+WORKAROUND IF ALL ELSE FAILS
+════════════════════════════════════════════════════════════════════
+
+If you can't get Pluto detected, you can still:
+
+1. Test the signal processing (no hardware):
+   >> test_chain
+   
+2. Use saved IQ data:
+   • Record on another computer
+   • Transfer .mat file
+   • Process offline
+
+3. Use different SDR:
+   • RTL-SDR (receive only)
+   • HackRF
+   • USRP
+   (Code modifications needed)
+
+
+PLATFORM-SPECIFIC NOTES
+════════════════════════════════════════════════════════════════════
+
+WINDOWS:
+  • Driver installation required
+  • May need to run MATLAB as Administrator
+  • Disable "Fast Startup" in Windows if issues persist
+  • Check Windows Update for driver updates
+
+LINUX:
+  • Add user to plugdev group: sudo usermod -a -G plugdev $USER
+  • Install libiio: sudo apt-get install libiio-utils
+  • May need udev rules
+  • Logout/login after group changes
+
+MAC:
+  • Install libiio via Homebrew: brew install libiio
+  • May need additional USB drivers
+  • Check System Preferences > Security
+
+
+FIRMWARE UPDATE (If Needed)
+════════════════════════════════════════════════════════════════════
+
+If Pluto is detected but unstable:
+
+1. Check current firmware:
+   • Visit: http://192.168.2.1
+   • Note firmware version
+
+2. Download latest:
+   • From: https://github.com/analogdevicesinc/plutosdr-fw/releases
+   • Get: pluto.frm file
+
+3. Update:
+   • Copy pluto.frm to PlutoSDR mass storage drive
+   • Wait for update (LED stops blinking)
+   • Unplug/replug when complete
+
+
+GETTING MORE HELP
+════════════════════════════════════════════════════════════════════
+
+Official Resources:
+  • Wiki: https://wiki.analog.com/university/tools/pluto
+  • Forum: https://ez.analog.com
+  • GitHub: https://github.com/analogdevicesinc/plutosdr-fw
+
+MATLAB Resources:
+  • Doc: doc sdrtx
+  • Doc: doc findPlutoRadio
+  • Support: https://www.mathworks.com/support
+
+Run Diagnostics:
+  >> pluto_diagnostic    % Full system check
+  >> test_chain          % Test without hardware
+
+
+SUCCESS CHECKLIST
+════════════════════════════════════════════════════════════════════
+
+You've fixed the issue when:
+  ✓ pluto_diagnostic shows radios detected
+  ✓ findPlutoRadio returns radio structure
+  ✓ Can create sdrtx/sdrrx objects
+  ✓ GUI detects radios when clicking Detect button
+  ✓ No error messages about missing functions
+
+
+═══════════════════════════════════════════════════════════════════
+Need immediate help? Run:
+  >> pluto_diagnostic
+═══════════════════════════════════════════════════════════════════
