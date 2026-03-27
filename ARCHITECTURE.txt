@@ -1,0 +1,170 @@
+SDR AX.25 DIGITAL CHAT SYSTEM - ARCHITECTURE DIAGRAM
+═══════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER INTERFACE LAYER                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌────────────┐     ┌──────────────┐     ┌─────────────┐     │
+│   │  main.m    │────▶│  gui_app.m   │────▶│ Status/Chat │     │
+│   │ (Entry)    │     │  (GUI)       │     │  Display    │     │
+│   └────────────┘     └──────┬───────┘     └─────────────┘     │
+│                             │                                   │
+└─────────────────────────────┼───────────────────────────────────┘
+                              │
+┌─────────────────────────────┼───────────────────────────────────┐
+│                   CONTROL LAYER                                  │
+├─────────────────────────────┼───────────────────────────────────┤
+│                             │                                   │
+│   ┌──────────────────────────▼──────────────────────────┐      │
+│   │        half_duplex_sm.m (State Machine)             │      │
+│   │  ┌──────┐   ┌──────────┐   ┌─────────┐             │      │
+│   │  │ IDLE │──▶│ TRANSMIT │──▶│ RECEIVE │             │      │
+│   │  └──────┘   └──────────┘   └─────────┘             │      │
+│   └──────────────────┬──────────────┬───────────────────┘      │
+│                      │              │                           │
+└──────────────────────┼──────────────┼───────────────────────────┘
+                       │              │
+         ┌─────────────┴──┐      ┌───┴────────────┐
+         │ TX PATH        │      │ RX PATH        │
+         │                │      │                │
+┌────────▼────────────────▼──────▼────────────────▼───────────────┐
+│                   SIGNAL PROCESSING LAYER                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  TRANSMIT CHAIN (tx_chain.m)     RECEIVE CHAIN (rx_chain.m)    │
+│  ┌────────────────────┐           ┌────────────────────┐       │
+│  │  User Text         │           │  Pluto RX          │       │
+│  └────────┬───────────┘           └────────┬───────────┘       │
+│           │                                │                    │
+│  ┌────────▼───────────┐           ┌────────▼───────────┐       │
+│  │ ax25_encode.m      │           │ fm_demod.m         │       │
+│  │ • Add headers      │           │ • Phase diff       │       │
+│  │ • CRC-16           │           │ • De-emphasis      │       │
+│  │ • Frame structure  │           │ • Lowpass filter   │       │
+│  └────────┬───────────┘           └────────┬───────────┘       │
+│           │                                │                    │
+│  ┌────────▼───────────┐           ┌────────▼───────────┐       │
+│  │ afsk_mod.m         │           │ afsk_demod.m       │       │
+│  │ • 1200 Hz (mark)   │           │ • Bandpass filters │       │
+│  │ • 2200 Hz (space)  │           │ • Envelope detect  │       │
+│  │ • Phase continuous │           │ • Bit sampling     │       │
+│  └────────┬───────────┘           └────────┬───────────┘       │
+│           │                                │                    │
+│  ┌────────▼───────────┐           ┌────────▼───────────┐       │
+│  │ fm_mod.m           │           │ ax25_decode.m      │       │
+│  │ • Pre-emphasis     │           │ • Find flags       │       │
+│  │ • Phase integration│           │ • Extract payload  │       │
+│  │ • Complex I/Q      │           │ • Verify CRC       │       │
+│  └────────┬───────────┘           └────────┬───────────┘       │
+│           │                                │                    │
+│  ┌────────▼───────────┐           ┌────────▼───────────┐       │
+│  │ Pluto TX           │           │ Decoded Text       │       │
+│  └────────────────────┘           └────────────────────┘       │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────┼───────────────────────────────────┐
+│                    HARDWARE LAYER                                │
+├─────────────────────────────┼───────────────────────────────────┤
+│                             │                                   │
+│   ┌──────────────────────────▼──────────────────────────┐      │
+│   │         pluto_config.m (Device Manager)             │      │
+│   │  • Detect radios                                    │      │
+│   │  • Configure TX/RX                                  │      │
+│   │  • Set frequency, gain, sample rate                 │      │
+│   └──────────────┬──────────────┬───────────────────────┘      │
+│                  │              │                               │
+│   ┌──────────────▼──────────┐  ┌▼───────────────────────┐     │
+│   │  ADALM-Pluto TX         │  │  ADALM-Pluto RX        │     │
+│   │  • Center: 145 MHz      │  │  • Center: 145 MHz     │     │
+│   │  • Rate: 2.4 MHz        │  │  • Rate: 2.4 MHz       │     │
+│   │  • Gain: 0 dB           │  │  • Gain: 20 dB         │     │
+│   └─────────────┬───────────┘  └┬───────────────────────┘     │
+│                 │                 │                             │
+└─────────────────┼─────────────────┼─────────────────────────────┘
+                  │                 │
+              ┌───▼───┐         ┌───▼───┐
+              │  ANT  │         │  ANT  │
+              └───────┘         └───────┘
+
+
+DATA FLOW EXAMPLES
+═══════════════════════════════════════════════════════════════════
+
+TRANSMIT:
+  "Hello" → [01001000 01100101 01101100...] → AX.25 Frame
+  → [1 0 1 1 0 0...] bits → [1200Hz 2200Hz 1200Hz...] tones
+  → AFSK Audio → FM Modulated I/Q → RF @ 145 MHz
+
+RECEIVE:
+  RF @ 145 MHz → Complex I/Q → FM Demod → Audio
+  → [1200Hz 2200Hz...] tones → [1 0 1...] bits
+  → AX.25 Frame → [01001000...] bytes → "Hello"
+
+
+KEY PARAMETERS
+═══════════════════════════════════════════════════════════════════
+
+RF:     145 MHz center, 2.4 MHz sample rate, 5 kHz deviation
+AFSK:   1200/2200 Hz, 1200 baud, 48 kHz audio rate
+AX.25:  Frame with CRC-16, max 256 byte payload
+Timing: ~1 sec latency, half-duplex operation
+
+
+MODULE DEPENDENCIES
+═══════════════════════════════════════════════════════════════════
+
+main.m
+ └── gui_app.m
+      ├── half_duplex_sm.m
+      ├── pluto_config.m
+      ├── tx_chain.m
+      │    ├── ax25_encode.m
+      │    ├── afsk_mod.m
+      │    └── fm_mod.m
+      └── rx_chain.m
+           ├── fm_demod.m
+           ├── afsk_demod.m
+           └── ax25_decode.m
+
+
+TESTING ARCHITECTURE
+═══════════════════════════════════════════════════════════════════
+
+test_chain.m (Integration Tests)
+ ├── Test 1: AX.25 Encode/Decode
+ │    └── ax25_encode → ax25_decode
+ ├── Test 2: AFSK Mod/Demod
+ │    └── afsk_mod → afsk_demod
+ ├── Test 3: FM Mod/Demod
+ │    └── fm_mod → fm_demod
+ └── Test 4: Complete Chain
+      └── encode → AFSK → FM → [+noise] → FM demod → AFSK demod → decode
+
+demo.m (Hardware Tests)
+ ├── Scenario 1: Simulation (no hardware)
+ ├── Scenario 2: Loopback (1 Pluto)
+ └── Scenario 3: Two-device (2 Plutos)
+
+
+FILE SIZE SUMMARY
+═══════════════════════════════════════════════════════════════════
+
+Protocol Layer:     ax25_encode.m (4.2K), ax25_decode.m (4.9K)
+Modulation Layer:   afsk_mod.m (2.2K), afsk_demod.m (2.4K)
+                    fm_mod.m (1.9K), fm_demod.m (2.0K)
+System Layer:       tx_chain.m (3.2K), rx_chain.m (3.6K)
+                    half_duplex_sm.m (3.6K)
+Hardware Layer:     pluto_config.m (4.1K)
+Application:        gui_app.m (10.6K), main.m (1.1K)
+Testing:            test_chain.m (5.4K), demo.m (5.9K)
+Documentation:      README.md (7.3K), USER_GUIDE.md (6.4K)
+
+Total Code: ~33 KB (11 modules)
+Total Docs: ~15 KB (3 files)
+Total Test: ~11 KB (2 scripts)
+
+═══════════════════════════════════════════════════════════════════
+END OF ARCHITECTURE DIAGRAM
+═══════════════════════════════════════════════════════════════════

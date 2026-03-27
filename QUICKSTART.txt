@@ -1,0 +1,247 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║                                                                   ║
+║             SDR AX.25 DIGITAL CHAT SYSTEM                        ║
+║                  QUICK START GUIDE                                ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+
+STEP 1: VERIFY MATLAB SETUP
+════════════════════════════════════════════════════════════════════
+
+□ MATLAB R2019b or later installed
+□ Communications Toolbox installed
+□ DSP System Toolbox installed
+□ Signal Processing Toolbox installed
+□ PlutoSDR Support Package installed
+   ↳ Run: supportPackageInstaller
+   ↳ Search: "ADALM-Pluto"
+   ↳ Install the support package
+
+
+STEP 2: CONNECT HARDWARE
+════════════════════════════════════════════════════════════════════
+
+□ Connect ADALM-Pluto SDR #1 via USB
+□ Connect ADALM-Pluto SDR #2 via USB (optional for 2-radio mode)
+□ Wait for drivers to install (first time only)
+□ Verify connection:
+   - Windows: Check Device Manager
+   - Linux: Run 'lsusb' and look for Analog Devices
+
+
+STEP 3: TEST WITHOUT HARDWARE (OPTIONAL BUT RECOMMENDED)
+════════════════════════════════════════════════════════════════════
+
+□ Open MATLAB
+□ Navigate to project directory:
+   >> cd c:\Users\josec\Desktop\SDR_MS
+□ Run test suite:
+   >> test_chain
+□ Expected results:
+   ✓ AX.25 Test PASSED
+   ✓ AFSK Test PASSED
+   ✓ FM Test PASSED
+   ✓ COMPLETE CHAIN TEST PASSED!
+
+
+STEP 4: LAUNCH THE APPLICATION
+════════════════════════════════════════════════════════════════════
+
+□ Start the GUI:
+   >> main
+
+   OR for command-line interface:
+   >> simple_chat
+
+
+STEP 5: CONFIGURE RADIOS (IN GUI)
+════════════════════════════════════════════════════════════════════
+
+□ Click "🔍 Detect" button
+□ Wait for radio detection to complete
+□ Select TX radio from dropdown
+□ Select RX radio from dropdown (can be same as TX for loopback)
+□ Click "🔌 Connect" button
+□ Wait for "Connected successfully!" message
+
+
+STEP 6: SET CALLSIGNS
+════════════════════════════════════════════════════════════════════
+
+□ Enter your callsign in "Source" field (e.g., "N0CALL")
+□ Enter destination callsign in "Dest" field (e.g., "CQ")
+   Note: Callsigns limited to 6 characters
+
+
+STEP 7: SEND YOUR FIRST MESSAGE
+════════════════════════════════════════════════════════════════════
+
+□ Type message in text area
+□ Click "📢 Request TX" button
+□ Wait for status to change to "🟢 TX"
+□ Click "📤 Send" button
+□ Watch chat display for confirmation
+□ Status automatically returns to "🔵 RX"
+
+
+STEP 8: RECEIVE MESSAGES
+════════════════════════════════════════════════════════════════════
+
+□ System automatically monitors for incoming messages
+□ Received messages appear in chat display with timestamp
+□ Format: [HH:MM:SS] CALLSIGN: Message text
+
+
+TESTING SCENARIOS
+════════════════════════════════════════════════════════════════════
+
+SCENARIO A: Single Radio Loopback
+  □ Use ONE Pluto radio
+  □ Select same radio for both TX and RX
+  □ Connect TX antenna to RX antenna with 20-30 dB attenuator
+  □ Send message and verify reception
+  ⚠️ WARNING: DO NOT connect TX directly to RX without attenuation!
+
+SCENARIO B: Two Radio Communication
+  □ Use TWO Pluto radios
+  □ Select different radio for TX and RX
+  □ Place radios close together (~1 meter)
+  □ Send message from one, receive on other
+  □ Can swap roles by requesting TX on other side
+
+SCENARIO C: Command-Line Demo
+  □ Run: demo
+  □ Follow interactive prompts
+  □ Tests all three scenarios automatically
+
+
+TROUBLESHOOTING
+════════════════════════════════════════════════════════════════════
+
+PROBLEM: No radios detected
+  □ Check USB connections
+  □ Unplug and replug Pluto radios
+  □ Restart MATLAB
+  □ Reinstall PlutoSDR Support Package
+  □ Try different USB port
+
+PROBLEM: Connection failed
+  □ Release any existing connections
+  □ Close other applications using Pluto
+  □ Check radio IDs match detected devices
+  □ Restart MATLAB
+
+PROBLEM: Message not received
+  □ Verify both radios on same frequency
+  □ Check antennas connected
+  □ Increase RX gain (try 30 dB)
+  □ Reduce distance between radios
+  □ Run test_chain to verify signal processing
+
+PROBLEM: CRC errors
+  □ Check for interference (WiFi, Bluetooth)
+  □ Reduce TX gain or increase distance
+  □ Verify frequency settings
+  □ Check antenna connections
+
+PROBLEM: GUI won't start
+  □ Check MATLAB version (need R2019b+)
+  □ Use command-line interface: simple_chat
+  □ Check for errors in MATLAB console
+
+
+ADVANCED OPTIONS
+════════════════════════════════════════════════════════════════════
+
+Change Frequency:
+  □ Edit pluto_config.m call in gui_app.m
+  □ Default: 145 MHz (amateur radio band - license required!)
+  □ Alternative: 433 MHz (ISM band - check local rules)
+  
+Adjust Gains:
+  □ TX Gain: 0 dB (lower to reduce power)
+  □ RX Gain: 20 dB (raise to increase sensitivity)
+  □ Modify in pluto_config() function call
+
+Custom Parameters:
+  □ See parameters.txt for all configurable values
+  □ Edit individual module files as needed
+
+
+COMMAND-LINE REFERENCE
+════════════════════════════════════════════════════════════════════
+
+Test System:
+  >> test_chain
+
+Interactive Demo:
+  >> demo
+
+Simple Chat:
+  >> simple_chat
+
+Manual Configuration:
+  >> [tx,rx] = pluto_config('usb:0', 'usb:1', 145e6, 0, 20)
+
+Transmit Message:
+  >> tx_chain('Hello World!', tx, 'CALL1', 'CALL2')
+
+Receive (10 sec):
+  >> [msg, valid, src, dst] = rx_chain(rx, 10)
+
+
+IMPORTANT WARNINGS
+════════════════════════════════════════════════════════════════════
+
+⚠️  FREQUENCY LICENSING
+    • 145 MHz is amateur radio band - LICENSE REQUIRED
+    • Check local regulations before transmitting
+    • Use 433 MHz or other ISM bands for unlicensed operation
+
+⚠️  RF SAFETY
+    • Low power output but still observe safety precautions
+    • Keep transmitters away from medical devices
+    • Use appropriate antennas for selected frequency
+
+⚠️  ATTENUATION
+    • NEVER connect TX directly to RX without 20-30 dB attenuation
+    • Can damage receiver!
+
+
+GETTING HELP
+════════════════════════════════════════════════════════════════════
+
+Documentation:
+  □ README.md - Project overview
+  □ USER_GUIDE.md - Detailed user manual
+  □ ARCHITECTURE.txt - System architecture
+  □ parameters.txt - Technical specifications
+
+Error Messages:
+  □ Check MATLAB console for error details
+  □ Most errors include helpful diagnostic info
+  □ Run test_chain.m to isolate issues
+
+
+SUCCESS CHECKLIST
+════════════════════════════════════════════════════════════════════
+
+You've successfully set up the system when:
+  ✓ test_chain completes without errors
+  ✓ Radios detected and connected
+  ✓ Status indicator shows current state
+  ✓ Can send messages (even if not received yet)
+  ✓ Chat display updates with timestamps
+
+You've achieved full operation when:
+  ✓ Messages transmitted successfully
+  ✓ Messages received and decoded correctly
+  ✓ CRC validation passes
+  ✓ Half-duplex switching works smoothly
+  ✓ Communication is reliable and consistent
+
+
+═══════════════════════════════════════════════════════════════════
+             🎉 ENJOY YOUR SDR CHAT SYSTEM! 📡✨
+═══════════════════════════════════════════════════════════════════
